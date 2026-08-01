@@ -1,0 +1,35 @@
+﻿# ============================================================
+# BAW OS — Déploiement
+# ============================================================
+
+# Environnement et secrets
+.env
+.env.*
+!.env.example
+secrets/
+
+# Données d'exécution
+runtime/
+docker-data/
+backups/
+logs/
+cache/
+
+# Sauvegardes et bases
+*.dump
+*.backup
+*.sql.gz
+*.tar.gz
+
+# Fichiers temporaires
+*.tmp
+*.log
+
+# Éditeurs
+.vscode/
+.idea/
+
+# Système
+.DS_Store
+Thumbs.db
+desktop.ini
