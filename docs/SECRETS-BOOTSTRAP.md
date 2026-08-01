@@ -1,0 +1,38 @@
+# BAW Secrets Bootstrap
+
+## Objectif
+
+Le bootstrap centralise la création et la restauration des secrets nécessaires
+à BAW OS.
+
+Les valeurs sensibles sont écrites hors Git, dans le dossier `secrets` de la
+racine d'installation.
+
+## Protections
+
+- un fichier distinct par secret ;
+- valeurs existantes chargées masquées dans l’interface ;
+- affichage temporaire et copie avec effacement automatique du presse-papiers ;
+- héritage NTFS conservé et contrôle total explicitement accordé au compte courant ;
+- copie locale DPAPI liée au compte Windows ;
+- export portable AES-256 protégé par mot de passe maître ;
+- index documentaire sans aucune valeur sensible ;
+- aucun secret dans le dépôt `baw-os-deploy`.
+
+## Restauration
+
+Le coffre portable permet de restaurer les secrets sur un nouveau disque ou un
+nouveau poste, à condition de conserver son mot de passe maître.
+
+La sauvegarde DPAPI locale ne doit pas être considérée comme portable : elle est
+liée au compte Windows qui l'a créée.
+
+## n8n
+
+La clé `N8N_ENCRYPTION_KEY` doit rester stable pendant la durée de vie de
+l'instance. Elle est sauvegardée avec les autres secrets, séparément de la base
+PostgreSQL.
+
+Les fichiers secrets seront montés dans les conteneurs via Docker Compose et
+lus avec les variables de configuration suffixées par `_FILE` lorsque le
+service le permet.

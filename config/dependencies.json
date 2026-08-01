@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "dependencies": [
+    {
+      "id": "git",
+      "required": true,
+      "mode": "windows-host"
+    },
+    {
+      "id": "docker-desktop",
+      "required": true,
+      "mode": "windows-host"
+    },
+    {
+      "id": "docker-compose",
+      "required": true,
+      "mode": "docker-plugin"
+    },
+    {
+      "id": "n8n",
+      "required": true,
+      "mode": "docker-service"
+    },
+    {
+      "id": "ollama",
+      "required": true,
+      "mode": "windows-host",
+      "role": "local-slm-engine"
+    }
+  ]
+}
