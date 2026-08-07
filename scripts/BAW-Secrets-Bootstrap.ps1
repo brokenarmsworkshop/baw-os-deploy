@@ -13,6 +13,7 @@
       - affiche une fenêtre unique pour les secrets du projet ;
       - conserve les secrets existants lorsque les champs restent vides ;
       - génère les secrets techniques manquants ;
+      - conserve aussi les identifiants techniques nécessaires à la reconstruction ;
       - écrit un fichier séparé par secret pour Docker Compose ;
       - protège le dossier avec des ACL NTFS restrictives ;
       - crée une sauvegarde locale chiffrée par DPAPI ;
@@ -60,7 +61,7 @@ catch {
 # ============================================================
 
 $VaultSchemaVersion = 1
-$BootstrapVersion = "1.6"
+$BootstrapVersion = "1.9"
 $DefaultOwner = "Broken Arms Workshop"
 
 $SecretDefinitions = @(
@@ -72,6 +73,19 @@ $SecretDefinitions = @(
         required    = $true
         relativePath = "postgres\postgres_admin_password.txt"
         description = "Mot de passe administrateur du serveur PostgreSQL."
+        legacyFilePath = ""
+        legacyEnv   = ""
+        legacyKey   = ""
+    },
+    [ordered]@{
+        id          = "BAW_AUTOMATION_DB_PASSWORD"
+        label       = "PostgreSQL — mot de passe du compte d'automatisation"
+        category    = "Socle technique"
+        kind        = "generated"
+        required    = $true
+        relativePath = "postgres\baw_automation_password.txt"
+        description = "Mot de passe du rôle PostgreSQL baw_automation utilisé par les workflows n8n."
+        legacyFilePath = ""
         legacyEnv   = ""
         legacyKey   = ""
     },
@@ -83,6 +97,7 @@ $SecretDefinitions = @(
         required    = $true
         relativePath = "n8n\db_password.txt"
         description = "Mot de passe du compte PostgreSQL dédié à n8n."
+        legacyFilePath = ""
         legacyEnv   = ""
         legacyKey   = ""
     },
@@ -94,6 +109,7 @@ $SecretDefinitions = @(
         required    = $true
         relativePath = "n8n\encryption_key.txt"
         description = "Clé stable utilisée pour chiffrer les credentials n8n."
+        legacyFilePath = ""
         legacyEnv   = "n8n\n8n.env"
         legacyKey   = "N8N_ENCRYPTION_KEY"
     },
@@ -105,6 +121,7 @@ $SecretDefinitions = @(
         required    = $true
         relativePath = "hum-bridge\service_secret.txt"
         description = "Secret partagé pour authentifier HUM Bridge."
+        legacyFilePath = ""
         legacyEnv   = ""
         legacyKey   = ""
     },
@@ -116,6 +133,35 @@ $SecretDefinitions = @(
         required    = $true
         relativePath = "baw\internal_api_key.txt"
         description = "Clé pour les appels internes entre services BAW OS."
+        legacyFilePath = ""
+        legacyEnv   = ""
+        legacyKey   = ""
+    },
+    [ordered]@{
+        id          = "WSL_BAWOPS_USERNAME"
+        label       = "WSL — identifiant opérateur BAW"
+        category    = "Environnement WSL"
+        kind        = "entered"
+        required    = $true
+        sensitive   = $false
+        defaultValue = "bawops"
+        relativePath = "wsl\bawops_username.txt"
+        description = "Identifiant Linux du compte opérateur BAW dans la distribution WSL."
+        legacyFilePath = ""
+        legacyEnv   = ""
+        legacyKey   = ""
+    },
+    [ordered]@{
+        id          = "WSL_BAWOPS_PASSWORD"
+        label       = "WSL — mot de passe du compte bawops"
+        category    = "Environnement WSL"
+        kind        = "generated"
+        required    = $true
+        sensitive   = $true
+        defaultValue = ""
+        relativePath = "wsl\bawops_password.txt"
+        description = "Mot de passe technique du compte Linux bawops utilisé dans WSL."
+        legacyFilePath = ""
         legacyEnv   = ""
         legacyKey   = ""
     },
@@ -125,8 +171,9 @@ $SecretDefinitions = @(
         category    = "Services externes"
         kind        = "entered"
         required    = $false
-        relativePath = "providers\mistral_api_key.txt"
-        description = "Clé d'accès à l'API Mistral."
+        relativePath = "mistral\api_key.txt"
+        description = "Clé API canonique unique utilisée par BAW OS et n8n."
+        legacyFilePath = "providers\mistral_api_key.txt"
         legacyEnv   = ""
         legacyKey   = ""
     },
@@ -136,8 +183,9 @@ $SecretDefinitions = @(
         category    = "Services externes"
         kind        = "entered"
         required    = $false
-        relativePath = "providers\notion_token.txt"
-        description = "Jeton de l'intégration Notion utilisée par BAW OS."
+        relativePath = "notion\api_token.txt"
+        description = "Jeton canonique unique de l'intégration Notion BAW OS."
+        legacyFilePath = "providers\notion_token.txt"
         legacyEnv   = ""
         legacyKey   = ""
     },
@@ -147,8 +195,9 @@ $SecretDefinitions = @(
         category    = "Services externes"
         kind        = "entered"
         required    = $false
-        relativePath = "providers\openai_api_key.txt"
-        description = "Clé facultative pour les services OpenAI."
+        relativePath = "openai\api_key.txt"
+        description = "Clé API canonique unique pour les services OpenAI."
+        legacyFilePath = "providers\openai_api_key.txt"
         legacyEnv   = ""
         legacyKey   = ""
     },
@@ -158,8 +207,9 @@ $SecretDefinitions = @(
         category    = "Services externes"
         kind        = "entered"
         required    = $false
-        relativePath = "providers\github_token.txt"
-        description = "Jeton facultatif pour les automatisations GitHub."
+        relativePath = "github\token.txt"
+        description = "Jeton canonique unique pour les automatisations GitHub."
+        legacyFilePath = "providers\github_token.txt"
         legacyEnv   = ""
         legacyKey   = ""
     },
@@ -169,12 +219,34 @@ $SecretDefinitions = @(
         category    = "Services externes"
         kind        = "entered"
         required    = $false
-        relativePath = "providers\smtp_password.txt"
-        description = "Mot de passe facultatif pour l'envoi de courriels."
+        relativePath = "smtp\password.txt"
+        description = "Mot de passe canonique unique pour la messagerie SMTP."
+        legacyFilePath = "providers\smtp_password.txt"
         legacyEnv   = ""
         legacyKey   = ""
     }
 )
+
+function Test-DefinitionSensitive {
+    param([Parameter(Mandatory)][hashtable]$Definition)
+
+    if ($Definition.ContainsKey("sensitive")) {
+        return [bool]$Definition.sensitive
+    }
+
+    # Compatibilité : les définitions historiques sont sensibles par défaut.
+    return $true
+}
+
+function Get-DefinitionDefaultValue {
+    param([Parameter(Mandatory)][hashtable]$Definition)
+
+    if ($Definition.ContainsKey("defaultValue")) {
+        return [string]$Definition.defaultValue
+    }
+
+    return ""
+}
 
 # ============================================================
 # AFFICHAGE CONSOLE
@@ -424,6 +496,32 @@ function Get-ExistingSecretValue {
 
         if (-not [string]::IsNullOrWhiteSpace($Value)) {
             return $Value.Trim()
+        }
+    }
+
+    if (
+        -not [string]::IsNullOrWhiteSpace(
+            [string]$Definition.legacyFilePath
+        )
+    ) {
+        $LegacyFilePath = Join-Path `
+            $SecretsRoot `
+            $Definition.legacyFilePath
+
+        if (Test-Path -LiteralPath $LegacyFilePath) {
+            $LegacyFileValue = (
+                Get-Content `
+                    -LiteralPath $LegacyFilePath `
+                    -Raw
+            )
+
+            if (
+                -not [string]::IsNullOrWhiteSpace(
+                    $LegacyFileValue
+                )
+            ) {
+                return $LegacyFileValue.Trim()
+            }
         }
     }
 
@@ -891,6 +989,106 @@ function Unprotect-PortableVault {
 }
 
 # ============================================================
+# MIGRATION SÛRE DES ANCIENS CHEMINS DE SECRETS
+# ============================================================
+
+function Remove-MigratedLegacySecretFiles {
+    param(
+        [Parameter(Mandatory)][hashtable]$Values,
+        [Parameter(Mandatory)][string]$SecretsRoot
+    )
+
+    foreach ($DefinitionObject in $SecretDefinitions) {
+        $Definition = [hashtable]$DefinitionObject
+        $LegacyRelativePath = [string]$Definition.legacyFilePath
+
+        if ([string]::IsNullOrWhiteSpace($LegacyRelativePath)) {
+            continue
+        }
+
+        if (
+            -not $Values.ContainsKey($Definition.id) -or
+            [string]::IsNullOrWhiteSpace($Values[$Definition.id])
+        ) {
+            continue
+        }
+
+        $CanonicalPath = Join-Path `
+            $SecretsRoot `
+            $Definition.relativePath
+
+        $LegacyPath = Join-Path `
+            $SecretsRoot `
+            $LegacyRelativePath
+
+        if (-not (Test-Path -LiteralPath $LegacyPath)) {
+            continue
+        }
+
+        try {
+            $CanonicalValue = (
+                [System.IO.File]::ReadAllText($CanonicalPath)
+            ).Trim()
+
+            $LegacyValue = (
+                [System.IO.File]::ReadAllText($LegacyPath)
+            ).Trim()
+
+            if ($CanonicalValue -cne $LegacyValue) {
+                Write-Notice (
+                    "Ancien chemin conservé car sa valeur diffère : " +
+                    $LegacyRelativePath
+                )
+
+                continue
+            }
+
+            Remove-Item `
+                -LiteralPath $LegacyPath `
+                -Force `
+                -ErrorAction Stop
+
+            Write-Success (
+                "Ancien chemin migré et supprimé : " +
+                $LegacyRelativePath
+            )
+        }
+        catch {
+            Write-Notice (
+                "Impossible de nettoyer l'ancien chemin : " +
+                $LegacyRelativePath
+            )
+        }
+        finally {
+            $CanonicalValue = $null
+            $LegacyValue = $null
+        }
+    }
+
+    $LegacyProvidersDirectory = Join-Path `
+        $SecretsRoot `
+        "providers"
+
+    if (Test-Path -LiteralPath $LegacyProvidersDirectory) {
+        $RemainingItems = @(
+            Get-ChildItem `
+                -LiteralPath $LegacyProvidersDirectory `
+                -Force `
+                -ErrorAction SilentlyContinue
+        )
+
+        if ($RemainingItems.Count -eq 0) {
+            Remove-Item `
+                -LiteralPath $LegacyProvidersDirectory `
+                -Force `
+                -ErrorAction SilentlyContinue
+
+            Write-Success "Ancien dossier providers vide supprimé"
+        }
+    }
+}
+
+# ============================================================
 # ÉCRITURE DES SECRETS ET INDEX NON SENSIBLE
 # ============================================================
 
@@ -936,6 +1134,7 @@ function Save-Secrets {
             $IndexEntries.Add([ordered]@{
                 id          = $Definition.id
                 category    = $Definition.category
+                sensitive   = Test-DefinitionSensitive -Definition $Definition
                 present     = $false
                 fingerprint = ""
                 path        = $Definition.relativePath.Replace("\", "/")
@@ -952,11 +1151,16 @@ function Save-Secrets {
         $IndexEntries.Add([ordered]@{
             id          = $Definition.id
             category    = $Definition.category
+            sensitive   = Test-DefinitionSensitive -Definition $Definition
             present     = $true
             fingerprint = Get-ValueFingerprint -Value $Value
             path        = $Definition.relativePath.Replace("\", "/")
         })
     }
+
+    Remove-MigratedLegacySecretFiles `
+        -Values $Values `
+        -SecretsRoot $SecretsRoot
 
     # Configuration non sensible destinée au futur Compose.
     $PostgresNonSecret = @'
@@ -1074,6 +1278,7 @@ exit /b %EXITCODE%
                 category     = $Definition.category
                 kind         = $Definition.kind
                 required     = $Definition.required
+                sensitive    = Test-DefinitionSensitive -Definition $Definition
                 relativePath = $Definition.relativePath.Replace("\", "/")
                 description  = $Definition.description
             }
@@ -1104,7 +1309,13 @@ racine d'installation.
 ## Protections
 
 - un fichier distinct par secret ;
-- valeurs existantes chargées masquées dans l’interface ;
+- un seul secret canonique par application ;
+- compte PostgreSQL d'administration séparé du compte d'automatisation ;
+- secret d'automatisation : `postgres\baw_automation_password.txt` ;
+- chemins dédiés : `notion`, `mistral`, `openai`, `github`, `smtp`, `wsl` ;
+- migration sûre des anciens fichiers du dossier `providers` ;
+- les valeurs sensibles sont masquées ; les identifiants non sensibles restent visibles ;
+- identifiants WSL : utilisateur `bawops` et mot de passe technique généré ;
 - affichage temporaire et copie avec effacement automatique du presse-papiers ;
 - héritage NTFS conservé et contrôle total explicitement accordé au compte courant ;
 - copie locale DPAPI liée au compte Windows ;
@@ -1119,6 +1330,10 @@ nouveau poste, à condition de conserver son mot de passe maître.
 
 La sauvegarde DPAPI locale ne doit pas être considérée comme portable : elle est
 liée au compte Windows qui l'a créée.
+
+Les coffres portables de schéma 1 créés avant la V1.9 restent compatibles.
+Lorsqu'une nouvelle entrée WSL est absente d'un ancien coffre, elle peut être
+complétée dans l'interface puis enregistrée sans migration destructive.
 
 ## n8n
 
@@ -1290,11 +1505,16 @@ function Set-SecretsFormValues {
         $Definition = [hashtable]$DefinitionObject
         $Id = [string]$Definition.id
         $TextBox = $TextBoxes[$Id]
+        $IsSensitive = Test-DefinitionSensitive -Definition $Definition
+        $DefaultValue = Get-DefinitionDefaultValue -Definition $Definition
 
-        $TextBox.UseSystemPasswordChar = $true
+        $TextBox.UseSystemPasswordChar = $IsSensitive
 
         if ($Values.ContainsKey($Id)) {
             $TextBox.Text = [string]$Values[$Id]
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($DefaultValue)) {
+            $TextBox.Text = $DefaultValue
         }
         else {
             $TextBox.Clear()
@@ -1355,6 +1575,10 @@ function Update-SecretsFormStatuses {
             $Status.Text = "Absent — peut être généré automatiquement"
             $Status.ForeColor = [System.Drawing.Color]::DarkOrange
         }
+        elseif ($Definition.required) {
+            $Status.Text = "Absent — valeur requise"
+            $Status.ForeColor = [System.Drawing.Color]::DarkOrange
+        }
         else {
             $Status.Text = "Absent — facultatif à ce stade"
             $Status.ForeColor = [System.Drawing.Color]::DimGray
@@ -1386,7 +1610,7 @@ L'accès au coffre est refusé.
 Répare d'abord les permissions du dossier :
 $SecretsRoot
 
-Puis relance BAW Secrets Bootstrap V1.6.
+Puis relance BAW Secrets Bootstrap V$BootstrapVersion.
 "@
     }
 
@@ -1424,8 +1648,8 @@ Puis relance BAW Secrets Bootstrap V1.6.
 
     $Instruction = New-Object System.Windows.Forms.Label
     $Instruction.Text = @"
-Les valeurs existantes sont chargées directement dans les champs, mais restent
-masquées. « Voir » les révèle 10 secondes. « Copier » vide le presse-papiers après 30 secondes.
+Les valeurs sensibles restent masquées ; les identifiants non sensibles restent visibles.
+« Voir » révèle un secret 10 secondes. « Copier » vide le presse-papiers après 30 secondes.
 "@
     $Instruction.Location = New-Object System.Drawing.Point(25, 82)
     $Instruction.Size = New-Object System.Drawing.Size(890, 42)
@@ -1477,11 +1701,16 @@ masquées. « Voir » les révèle 10 secondes. « Copier » vide le presse-papi
         $TextBox = New-Object System.Windows.Forms.TextBox
         $TextBox.Location = New-Object System.Drawing.Point(315, ($Y - 3))
         $TextBox.Size = New-Object System.Drawing.Size(390, 24)
-        $TextBox.UseSystemPasswordChar = $true
+        $IsSensitive = Test-DefinitionSensitive -Definition $Definition
+        $DefaultValue = Get-DefinitionDefaultValue -Definition $Definition
+        $TextBox.UseSystemPasswordChar = $IsSensitive
         $TextBox.Tag = $Id
 
         if ($WorkingValues.ContainsKey($Id)) {
             $TextBox.Text = [string]$WorkingValues[$Id]
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($DefaultValue)) {
+            $TextBox.Text = $DefaultValue
         }
 
         $Panel.Controls.Add($TextBox)
@@ -1506,6 +1735,8 @@ masquées. « Voir » les révèle 10 secondes. « Copier » vide le presse-papi
         $ShowButton.Text = "Voir"
         $ShowButton.Location = New-Object System.Drawing.Point(715, ($Y - 4))
         $ShowButton.Size = New-Object System.Drawing.Size(58, 26)
+        $ShowButton.Visible = $IsSensitive
+        $ShowButton.Enabled = $IsSensitive
 
         $RevealTimer = New-Object System.Windows.Forms.Timer
         $RevealTimer.Interval = 10000
