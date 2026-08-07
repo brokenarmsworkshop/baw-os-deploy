@@ -14,9 +14,10 @@ racine d'installation.
 - un seul secret canonique par application ;
 - compte PostgreSQL d'administration séparé du compte d'automatisation ;
 - secret d'automatisation : `postgres\baw_automation_password.txt` ;
-- chemins dédiés : `notion`, `mistral`, `openai`, `github`, `smtp` ;
+- chemins dédiés : `notion`, `mistral`, `openai`, `github`, `smtp`, `wsl` ;
 - migration sûre des anciens fichiers du dossier `providers` ;
-- valeurs existantes chargées masquées dans l’interface ;
+- les valeurs sensibles sont masquées ; les identifiants non sensibles restent visibles ;
+- identifiants WSL : utilisateur `bawops` et mot de passe technique généré ;
 - affichage temporaire et copie avec effacement automatique du presse-papiers ;
 - héritage NTFS conservé et contrôle total explicitement accordé au compte courant ;
 - copie locale DPAPI liée au compte Windows ;
@@ -31,6 +32,10 @@ nouveau poste, à condition de conserver son mot de passe maître.
 
 La sauvegarde DPAPI locale ne doit pas être considérée comme portable : elle est
 liée au compte Windows qui l'a créée.
+
+Les coffres portables de schéma 1 créés avant la V1.9 restent compatibles.
+Lorsqu'une nouvelle entrée WSL est absente d'un ancien coffre, elle peut être
+complétée dans l'interface puis enregistrée sans migration destructive.
 
 ## n8n
 

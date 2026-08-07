@@ -13,6 +13,7 @@
       - affiche une fenêtre unique pour les secrets du projet ;
       - conserve les secrets existants lorsque les champs restent vides ;
       - génère les secrets techniques manquants ;
+      - conserve aussi les identifiants techniques nécessaires à la reconstruction ;
       - écrit un fichier séparé par secret pour Docker Compose ;
       - protège le dossier avec des ACL NTFS restrictives ;
       - crée une sauvegarde locale chiffrée par DPAPI ;
@@ -60,7 +61,7 @@ catch {
 # ============================================================
 
 $VaultSchemaVersion = 1
-$BootstrapVersion = "1.8"
+$BootstrapVersion = "1.9"
 $DefaultOwner = "Broken Arms Workshop"
 
 $SecretDefinitions = @(
@@ -137,6 +138,34 @@ $SecretDefinitions = @(
         legacyKey   = ""
     },
     [ordered]@{
+        id          = "WSL_BAWOPS_USERNAME"
+        label       = "WSL — identifiant opérateur BAW"
+        category    = "Environnement WSL"
+        kind        = "entered"
+        required    = $true
+        sensitive   = $false
+        defaultValue = "bawops"
+        relativePath = "wsl\bawops_username.txt"
+        description = "Identifiant Linux du compte opérateur BAW dans la distribution WSL."
+        legacyFilePath = ""
+        legacyEnv   = ""
+        legacyKey   = ""
+    },
+    [ordered]@{
+        id          = "WSL_BAWOPS_PASSWORD"
+        label       = "WSL — mot de passe du compte bawops"
+        category    = "Environnement WSL"
+        kind        = "generated"
+        required    = $true
+        sensitive   = $true
+        defaultValue = ""
+        relativePath = "wsl\bawops_password.txt"
+        description = "Mot de passe technique du compte Linux bawops utilisé dans WSL."
+        legacyFilePath = ""
+        legacyEnv   = ""
+        legacyKey   = ""
+    },
+    [ordered]@{
         id          = "MISTRAL_API_KEY"
         label       = "Mistral — clé API"
         category    = "Services externes"
@@ -197,6 +226,27 @@ $SecretDefinitions = @(
         legacyKey   = ""
     }
 )
+
+function Test-DefinitionSensitive {
+    param([Parameter(Mandatory)][hashtable]$Definition)
+
+    if ($Definition.ContainsKey("sensitive")) {
+        return [bool]$Definition.sensitive
+    }
+
+    # Compatibilité : les définitions historiques sont sensibles par défaut.
+    return $true
+}
+
+function Get-DefinitionDefaultValue {
+    param([Parameter(Mandatory)][hashtable]$Definition)
+
+    if ($Definition.ContainsKey("defaultValue")) {
+        return [string]$Definition.defaultValue
+    }
+
+    return ""
+}
 
 # ============================================================
 # AFFICHAGE CONSOLE
@@ -1084,6 +1134,7 @@ function Save-Secrets {
             $IndexEntries.Add([ordered]@{
                 id          = $Definition.id
                 category    = $Definition.category
+                sensitive   = Test-DefinitionSensitive -Definition $Definition
                 present     = $false
                 fingerprint = ""
                 path        = $Definition.relativePath.Replace("\", "/")
@@ -1100,6 +1151,7 @@ function Save-Secrets {
         $IndexEntries.Add([ordered]@{
             id          = $Definition.id
             category    = $Definition.category
+            sensitive   = Test-DefinitionSensitive -Definition $Definition
             present     = $true
             fingerprint = Get-ValueFingerprint -Value $Value
             path        = $Definition.relativePath.Replace("\", "/")
@@ -1226,6 +1278,7 @@ exit /b %EXITCODE%
                 category     = $Definition.category
                 kind         = $Definition.kind
                 required     = $Definition.required
+                sensitive    = Test-DefinitionSensitive -Definition $Definition
                 relativePath = $Definition.relativePath.Replace("\", "/")
                 description  = $Definition.description
             }
@@ -1259,9 +1312,10 @@ racine d'installation.
 - un seul secret canonique par application ;
 - compte PostgreSQL d'administration séparé du compte d'automatisation ;
 - secret d'automatisation : `postgres\baw_automation_password.txt` ;
-- chemins dédiés : `notion`, `mistral`, `openai`, `github`, `smtp` ;
+- chemins dédiés : `notion`, `mistral`, `openai`, `github`, `smtp`, `wsl` ;
 - migration sûre des anciens fichiers du dossier `providers` ;
-- valeurs existantes chargées masquées dans l’interface ;
+- les valeurs sensibles sont masquées ; les identifiants non sensibles restent visibles ;
+- identifiants WSL : utilisateur `bawops` et mot de passe technique généré ;
 - affichage temporaire et copie avec effacement automatique du presse-papiers ;
 - héritage NTFS conservé et contrôle total explicitement accordé au compte courant ;
 - copie locale DPAPI liée au compte Windows ;
@@ -1276,6 +1330,10 @@ nouveau poste, à condition de conserver son mot de passe maître.
 
 La sauvegarde DPAPI locale ne doit pas être considérée comme portable : elle est
 liée au compte Windows qui l'a créée.
+
+Les coffres portables de schéma 1 créés avant la V1.9 restent compatibles.
+Lorsqu'une nouvelle entrée WSL est absente d'un ancien coffre, elle peut être
+complétée dans l'interface puis enregistrée sans migration destructive.
 
 ## n8n
 
@@ -1447,11 +1505,16 @@ function Set-SecretsFormValues {
         $Definition = [hashtable]$DefinitionObject
         $Id = [string]$Definition.id
         $TextBox = $TextBoxes[$Id]
+        $IsSensitive = Test-DefinitionSensitive -Definition $Definition
+        $DefaultValue = Get-DefinitionDefaultValue -Definition $Definition
 
-        $TextBox.UseSystemPasswordChar = $true
+        $TextBox.UseSystemPasswordChar = $IsSensitive
 
         if ($Values.ContainsKey($Id)) {
             $TextBox.Text = [string]$Values[$Id]
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($DefaultValue)) {
+            $TextBox.Text = $DefaultValue
         }
         else {
             $TextBox.Clear()
@@ -1512,6 +1575,10 @@ function Update-SecretsFormStatuses {
             $Status.Text = "Absent — peut être généré automatiquement"
             $Status.ForeColor = [System.Drawing.Color]::DarkOrange
         }
+        elseif ($Definition.required) {
+            $Status.Text = "Absent — valeur requise"
+            $Status.ForeColor = [System.Drawing.Color]::DarkOrange
+        }
         else {
             $Status.Text = "Absent — facultatif à ce stade"
             $Status.ForeColor = [System.Drawing.Color]::DimGray
@@ -1543,7 +1610,7 @@ L'accès au coffre est refusé.
 Répare d'abord les permissions du dossier :
 $SecretsRoot
 
-Puis relance BAW Secrets Bootstrap V1.8.
+Puis relance BAW Secrets Bootstrap V$BootstrapVersion.
 "@
     }
 
@@ -1581,8 +1648,8 @@ Puis relance BAW Secrets Bootstrap V1.8.
 
     $Instruction = New-Object System.Windows.Forms.Label
     $Instruction.Text = @"
-Les valeurs existantes sont chargées directement dans les champs, mais restent
-masquées. « Voir » les révèle 10 secondes. « Copier » vide le presse-papiers après 30 secondes.
+Les valeurs sensibles restent masquées ; les identifiants non sensibles restent visibles.
+« Voir » révèle un secret 10 secondes. « Copier » vide le presse-papiers après 30 secondes.
 "@
     $Instruction.Location = New-Object System.Drawing.Point(25, 82)
     $Instruction.Size = New-Object System.Drawing.Size(890, 42)
@@ -1634,11 +1701,16 @@ masquées. « Voir » les révèle 10 secondes. « Copier » vide le presse-papi
         $TextBox = New-Object System.Windows.Forms.TextBox
         $TextBox.Location = New-Object System.Drawing.Point(315, ($Y - 3))
         $TextBox.Size = New-Object System.Drawing.Size(390, 24)
-        $TextBox.UseSystemPasswordChar = $true
+        $IsSensitive = Test-DefinitionSensitive -Definition $Definition
+        $DefaultValue = Get-DefinitionDefaultValue -Definition $Definition
+        $TextBox.UseSystemPasswordChar = $IsSensitive
         $TextBox.Tag = $Id
 
         if ($WorkingValues.ContainsKey($Id)) {
             $TextBox.Text = [string]$WorkingValues[$Id]
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($DefaultValue)) {
+            $TextBox.Text = $DefaultValue
         }
 
         $Panel.Controls.Add($TextBox)
@@ -1663,6 +1735,8 @@ masquées. « Voir » les révèle 10 secondes. « Copier » vide le presse-papi
         $ShowButton.Text = "Voir"
         $ShowButton.Location = New-Object System.Drawing.Point(715, ($Y - 4))
         $ShowButton.Size = New-Object System.Drawing.Size(58, 26)
+        $ShowButton.Visible = $IsSensitive
+        $ShowButton.Enabled = $IsSensitive
 
         $RevealTimer = New-Object System.Windows.Forms.Timer
         $RevealTimer.Interval = 10000
