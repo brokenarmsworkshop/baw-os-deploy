@@ -61,7 +61,7 @@ catch {
 # ============================================================
 
 $VaultSchemaVersion = 1
-$BootstrapVersion = "1.9"
+$BootstrapVersion = "1.9.1"
 $DefaultOwner = "Broken Arms Workshop"
 
 $SecretDefinitions = @(
@@ -1241,10 +1241,24 @@ function Prepare-DeployRepository {
         -not [string]::IsNullOrWhiteSpace($CurrentScript) -and
         (Test-Path -LiteralPath $CurrentScript)
     ) {
-        Copy-Item `
-            -LiteralPath $CurrentScript `
-            -Destination (Join-Path $ScriptsPath "BAW-Secrets-Bootstrap.ps1") `
-            -Force
+        $DestinationScript = Join-Path $ScriptsPath "BAW-Secrets-Bootstrap.ps1"
+        $SourceFullPath = [System.IO.Path]::GetFullPath(
+            (Get-Item -LiteralPath $CurrentScript).FullName
+        )
+        $DestinationFullPath = [System.IO.Path]::GetFullPath($DestinationScript)
+
+        if (
+            -not [string]::Equals(
+                $SourceFullPath,
+                $DestinationFullPath,
+                [System.StringComparison]::OrdinalIgnoreCase
+            )
+        ) {
+            Copy-Item `
+                -LiteralPath $CurrentScript `
+                -Destination $DestinationScript `
+                -Force
+        }
     }
 
     $Launcher = @'
