@@ -1,0 +1,30 @@
+name: baw-comfyui-test-v2
+
+services:
+  comfyui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        COMFYUI_VERSION: ${COMFYUI_VERSION:-v0.24.0}
+        TORCH_VERSION: ${TORCH_VERSION:-2.11.0}
+        TORCHVISION_VERSION: ${TORCHVISION_VERSION:-0.26.0}
+        TORCHAUDIO_VERSION: ${TORCHAUDIO_VERSION:-2.11.0}
+    image: baw/comfyui-test:v2
+    container_name: baw-comfyui-test-v2
+    gpus: all
+    ports:
+      - "127.0.0.1:8188:8188"
+    volumes:
+      - ../data/input:/opt/ComfyUI/input
+      - ../data/output:/opt/ComfyUI/output
+      - ../data/models:/opt/ComfyUI/models
+      - ../data/user:/opt/ComfyUI/user
+      - ../data/temp:/opt/ComfyUI/temp
+      - ../data:/data
+    environment:
+      PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+      HF_HOME: /data/models/.cache/huggingface
+      TRANSFORMERS_CACHE: /data/models/.cache/huggingface
+    shm_size: "4gb"
+    restart: "no"

@@ -34,3 +34,9 @@ cache/
 Thumbs.db
 desktop.ini
 deploy/postgres/.env
+
+# ComfyUI / LTX - artefacts locaux
+*.safetensors
+deploy/comfyui-ltx/.env
+deploy/comfyui-ltx/data/
+deploy/comfyui-ltx/models/

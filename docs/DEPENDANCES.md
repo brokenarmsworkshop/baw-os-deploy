@@ -35,3 +35,11 @@ Le contrôle porte sur :
 - les modèles déjà téléchargés.
 
 Le choix du ou des modèles BAW OS sera documenté séparément.
+
+## ComfyUI / LTX
+
+ComfyUI/LTX est un composant local optionnel de generation video.
+
+Il depend de Docker Desktop, WSL2, du support GPU NVIDIA/CUDA et des modeles declares dans `deploy/comfyui-ltx/models-manifest.json`.
+
+Les checkpoints ne sont pas versionnes.

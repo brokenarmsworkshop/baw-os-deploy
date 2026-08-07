@@ -1,0 +1,16 @@
+{
+    "schema":  "baw-os-model-manifest/v1",
+    "component":  "comfyui-ltx",
+    "status":  "validated",
+    "validated_at":  "2026-08-07",
+    "models":  [
+                   {
+                       "id":  "ltxv-2b-0.9.6-distilled-04-25",
+                       "filename":  "ltxv-2b-0.9.6-distilled-04-25.safetensors",
+                       "target":  "models/checkpoints/ltxv-2b-0.9.6-distilled-04-25.safetensors",
+                       "source":  "https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-2b-0.9.6-distilled-04-25.safetensors?download=true",
+                       "sha256":  "94891bd4bd08de30d484befbfc54fdcffe6d1596a131baad700b9baa5e1de86b",
+                       "tracked_in_git":  false
+                   }
+               ]
+}

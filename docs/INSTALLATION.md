@@ -13,3 +13,12 @@ Ce déploiement doit pouvoir être reconstruit à partir :
 ## Données non versionnées
 
 Les volumes Docker, bases actives, journaux, caches et secrets restent hors Git.
+
+
+## ComfyUI / LTX
+
+La recette du socle local ComfyUI/LTX est conservee dans `deploy/comfyui-ltx/`.
+
+Les versions validees, les montages et le manifeste du modele sont documentes dans `docs/COMFYUI-LTX.md`.
+
+Les modeles IA restent hors Git.
