@@ -11,6 +11,11 @@ racine d'installation.
 ## Protections
 
 - un fichier distinct par secret ;
+- un seul secret canonique par application ;
+- compte PostgreSQL d'administration séparé du compte d'automatisation ;
+- secret d'automatisation : `postgres\baw_automation_password.txt` ;
+- chemins dédiés : `notion`, `mistral`, `openai`, `github`, `smtp` ;
+- migration sûre des anciens fichiers du dossier `providers` ;
 - valeurs existantes chargées masquées dans l’interface ;
 - affichage temporaire et copie avec effacement automatique du presse-papiers ;
 - héritage NTFS conservé et contrôle total explicitement accordé au compte courant ;

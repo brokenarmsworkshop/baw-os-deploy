@@ -34,3 +34,4 @@ cache/
 Thumbs.db
 desktop.ini
 deploy/postgres/.env
+deploy/n8n/.env
