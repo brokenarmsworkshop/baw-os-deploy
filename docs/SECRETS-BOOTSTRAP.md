@@ -23,7 +23,8 @@ racine d'installation.
 - copie locale DPAPI liée au compte Windows ;
 - export portable AES-256 protégé par mot de passe maître ;
 - index documentaire sans aucune valeur sensible ;
-- aucun secret dans le dépôt `baw-os-deploy`.
+- aucun secret dans le dépôt `baw-os-deploy` ;
+- l'enregistrement depuis le script canonique détecte et ignore l'auto-copie source = destination.
 
 ## Restauration
 
