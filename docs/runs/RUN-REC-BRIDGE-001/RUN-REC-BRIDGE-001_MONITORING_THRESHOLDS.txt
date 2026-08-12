@@ -1,0 +1,16 @@
+RUN-REC-BRIDGE-001 — Grille de monitoring Mistral reconstruite
+
+Statut : reconstruction validée HUM, faute de seuils historiques retrouvés.
+Budget indicatif : 50 000 tokens / jour.
+Fuseau de calcul journalier : Europe/Paris.
+Monitoring : informatif et non bloquant.
+
+Niveau 1 — green        : usage < 20 %
+Niveau 2 — green-yellow : 20 % <= usage < 40 %
+Niveau 3 — yellow       : 40 % <= usage < 60 %
+Niveau 4 — yellow-orange: 60 % <= usage < 75 %
+Niveau 5 — orange       : 75 % <= usage < 90 %
+Niveau 6 — red-orange   : 90 % <= usage < 100 %
+Niveau 7 — red          : usage >= 100 %
+
+overBudget = true uniquement si totalTokens > 50 000.

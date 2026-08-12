@@ -1,0 +1,93 @@
+{
+  "id": "7ozeiJJbtoLz8rJN",
+  "name": "TEST — WF-MON-001 — RUN-REC-BRIDGE-001",
+  "active": false,
+  "isArchived": false,
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -500,
+        0
+      ],
+      "id": "090ba6ee-dea5-46d1-99c6-603227f17b29",
+      "name": "TEST — 01 — Manual Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    COALESCE(SUM(total_tokens), 0)::bigint AS total_tokens,\n    COUNT(*)::bigint AS request_count,\n    COALESCE(ROUND(AVG(total_tokens)), 0)::bigint AS average_tokens_per_request,\n    MAX(created_at) AS last_request_at\nFROM public.baw_mistral_usage_log\nWHERE created_at >= (\n        date_trunc('day', now() AT TIME ZONE 'Europe/Paris')\n        AT TIME ZONE 'Europe/Paris'\n    )\n  AND created_at < (\n        (date_trunc('day', now() AT TIME ZONE 'Europe/Paris') + interval '1 day')\n        AT TIME ZONE 'Europe/Paris'\n    );",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -260,
+        0
+      ],
+      "id": "166ae20e-7c3a-48ff-815c-385e348a2195",
+      "name": "TEST — 02 — Aggregate Daily Usage",
+      "credentials": {
+        "postgres": {
+          "id": "U22hvd10ebCmaIUg",
+          "name": "BAW OS — PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// RUN-REC-BRIDGE-001 — WF-MON-001\n// Grille 7 niveaux RECONSTRUITE faute de seuils historiques prouvés.\n// Monitoring informatif et non bloquant.\n\nconst row = $input.first()?.json ?? {};\n\nfunction toNumber(value, fallback = 0) {\n  const n = Number(value);\n  return Number.isFinite(n) ? n : fallback;\n}\n\nconst totalTokens = Math.max(0, Math.trunc(toNumber(row.total_tokens, 0)));\nconst requestCount = Math.max(0, Math.trunc(toNumber(row.request_count, 0)));\n\nconst averageTokensPerRequest =\n  requestCount > 0\n    ? Math.max(0, Math.trunc(toNumber(\n        row.average_tokens_per_request,\n        totalTokens / requestCount\n      )))\n    : 0;\n\nconst dailyBudget = 50000;\n\nconst usagePercent =\n  dailyBudget > 0\n    ? Number(((totalTokens / dailyBudget) * 100).toFixed(2))\n    : 0;\n\nlet indicator;\n\nif (usagePercent < 20) {\n  indicator = {\n    code: \"green\",\n    label: \"Faible\",\n    level: 1\n  };\n} else if (usagePercent < 40) {\n  indicator = {\n    code: \"green-yellow\",\n    label: \"Modérée\",\n    level: 2\n  };\n} else if (usagePercent < 60) {\n  indicator = {\n    code: \"yellow\",\n    label: \"Moyenne\",\n    level: 3\n  };\n} else if (usagePercent < 75) {\n  indicator = {\n    code: \"yellow-orange\",\n    label: \"Soutenue\",\n    level: 4\n  };\n} else if (usagePercent < 90) {\n  indicator = {\n    code: \"orange\",\n    label: \"Élevée\",\n    level: 5\n  };\n} else if (usagePercent < 100) {\n  indicator = {\n    code: \"red-orange\",\n    label: \"Très élevée\",\n    level: 6\n  };\n} else {\n  indicator = {\n    code: \"red\",\n    label: \"Budget atteint\",\n    level: 7\n  };\n}\n\nlet lastRequestAt = null;\n\nif (row.last_request_at) {\n  const d = new Date(row.last_request_at);\n\n  if (!Number.isNaN(d.getTime())) {\n    lastRequestAt = d.toISOString();\n  }\n}\n\nreturn [{\n  json: {\n    ok: true,\n    totalTokens,\n    dailyBudget,\n    usagePercent,\n    indicator,\n    usage: {\n      requestCount,\n      averageTokensPerRequest,\n      lastRequestAt\n    },\n    overBudget: totalTokens > dailyBudget\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        0
+      ],
+      "id": "8b4a6c6e-9586-4836-bd4a-7992c817329d",
+      "name": "TEST — 03 — Build Monitoring Contract"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "TEST — 01 — Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "TEST — 02 — Aggregate Daily Usage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEST — 02 — Aggregate Daily Usage": {
+      "main": [
+        [
+          {
+            "node": "TEST — 03 — Build Monitoring Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "availableInMCP": false
+  },
+  "versionId": "28a22cbd-ef6a-4dd5-823d-78d26ee752fb",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

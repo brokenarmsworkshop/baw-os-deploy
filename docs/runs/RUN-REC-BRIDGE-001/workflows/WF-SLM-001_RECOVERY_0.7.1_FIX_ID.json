@@ -1,0 +1,214 @@
+{
+  "name": "WF-SLM-001 — Ask Local Model — RECOVERY 0.7.1",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "baw/slm/ask",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -900,
+        0
+      ],
+      "id": "580d959e-b8a8-4747-b217-ee71ff1ecd73",
+      "name": "WF-SLM-001 — 01 — Receive SLM Request",
+      "webhookId": "ac7f4377-9168-4d05-a8b3-830f04f0ce8c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// RUN-REC-BRIDGE-001 — reconstruction minimale WF-SLM-001\n// Aucun secret. Aucun log applicatif de prompt/contenu.\n// Modèle HUM validé pour reconstruction : llama3.2:3b\n\nconst input = $input.first()?.json ?? {};\nconst body = input.body ?? input;\n\nfunction cleanString(value) {\n  return typeof value === \"string\" ? value.trim() : \"\";\n}\n\nfunction reject(errorCode, message) {\n  return [{\n    json: {\n      ok: false,\n      contractStatus: \"invalid\",\n      source: \"slm\",\n      errorCode,\n      message,\n      needsEscalation: false,\n      reason: null,\n      performance: {\n        promptTokens: null,\n        outputTokens: null,\n        totalTokens: null\n      }\n    }\n  }];\n}\n\nconst client =\n  body.client &&\n  typeof body.client === \"object\" &&\n  !Array.isArray(body.client)\n    ? body.client\n    : {};\n\nif (client.humAuthorized !== true) {\n  return reject(\n    \"hum_authorization_required\",\n    \"Une autorisation HUM explicite est requise.\"\n  );\n}\n\nconst instruction = cleanString(body.instruction);\nconst selection = cleanString(body.selection);\n\nif (!instruction && !selection) {\n  return reject(\n    \"missing_input\",\n    \"Une instruction ou une sélection est requise.\"\n  );\n}\n\nconst page =\n  body.page &&\n  typeof body.page === \"object\" &&\n  !Array.isArray(body.page)\n    ? body.page\n    : {};\n\nconst prompt = [\n  \"Tu es le SLM local du BAW HUM Bridge 0.7.1.\",\n  \"Tu fournis une aide textuelle uniquement. Tu n'exécutes aucune action externe.\",\n  \"Réponds strictement selon le schéma JSON fourni.\",\n  \"\",\n  \"Règle d'escalade : needsEscalation=true uniquement si une réponse plus robuste est recommandée\",\n  \"(information externe ou actuelle nécessaire, ambiguïté importante, enjeu sensible, contexte insuffisant,\",\n  \"ou confiance insuffisante). L'escalade reste une recommandation : aucune décision sensible automatique.\",\n  \"\",\n  `Instruction : ${instruction || \"(aucune)\"}`,\n  \"\",\n  `Sélection : ${selection || \"(aucune)\"}`,\n  \"\",\n  `Contexte de page : ${JSON.stringify(page)}`\n].join(\"\\n\");\n\nconst ollamaBody = JSON.stringify({\n  model: \"llama3.2:3b\",\n  prompt,\n  format: {\n    type: \"object\",\n    properties: {\n      answer: { type: \"string\" },\n      needsEscalation: { type: \"boolean\" },\n      reason: { type: \"string\" }\n    },\n    required: [\"answer\", \"needsEscalation\", \"reason\"]\n  },\n  stream: false,\n  options: {\n    temperature: 0.2\n  }\n});\n\nreturn [{\n  json: {\n    slmStatus: \"ready\",\n    ollamaBody\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        0
+      ],
+      "id": "8b6d43a6-2941-44c0-834b-537f3279d91b",
+      "name": "WF-SLM-001 — 02 — Validate & Prepare"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a3d64c9b-8ee4-4fe6-b82d-a6d01b613d2c",
+              "leftValue": "={{ $json.slmStatus }}",
+              "rightValue": "ready",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -460,
+        0
+      ],
+      "id": "7b132c61-0cd9-45b3-ab5d-7e13395bcc31",
+      "name": "WF-SLM-001 — 03 — Route Valid Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.ollamaBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -220,
+        -100
+      ],
+      "id": "9ebbea6b-020a-4328-8d36-6db0897e53e2",
+      "name": "WF-SLM-001 — 04 — Call Ollama",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Produit le contrat public stable attendu par BAW HUM Bridge 0.7.1.\n\nconst data = $input.first()?.json ?? {};\n\nfunction cleanString(value) {\n  return typeof value === \"string\" ? value.trim() : \"\";\n}\n\nfunction invalid(errorCode, message) {\n  return [{\n    json: {\n      ok: false,\n      contractStatus: \"invalid\",\n      source: \"slm\",\n      errorCode,\n      message,\n      needsEscalation: false,\n      reason: null,\n      performance: {\n        promptTokens: Number.isFinite(Number(data.prompt_eval_count))\n          ? Number(data.prompt_eval_count)\n          : null,\n        outputTokens: Number.isFinite(Number(data.eval_count))\n          ? Number(data.eval_count)\n          : null,\n        totalTokens: (\n          Number.isFinite(Number(data.prompt_eval_count)) &&\n          Number.isFinite(Number(data.eval_count))\n        )\n          ? Number(data.prompt_eval_count) + Number(data.eval_count)\n          : null\n      }\n    }\n  }];\n}\n\nif (data.error) {\n  const message =\n    cleanString(data.error?.message) ||\n    cleanString(data.error) ||\n    \"Échec de l'appel Ollama.\";\n\n  return invalid(\"ollama_error\", message);\n}\n\nconst rawContent = cleanString(data.response);\n\nif (!rawContent) {\n  return invalid(\n    \"empty_model_response\",\n    \"Ollama n'a retourné aucun contenu exploitable.\"\n  );\n}\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(rawContent);\n} catch {\n  return invalid(\n    \"invalid_model_contract\",\n    \"La réponse du SLM n'est pas un JSON valide.\"\n  );\n}\n\nconst answer = cleanString(parsed.answer);\n\nif (!answer || typeof parsed.needsEscalation !== \"boolean\") {\n  return invalid(\n    \"invalid_model_contract\",\n    \"La réponse du SLM ne respecte pas le contrat attendu.\"\n  );\n}\n\nconst promptTokens = Number(data.prompt_eval_count);\nconst outputTokens = Number(data.eval_count);\n\nconst promptTokensValue =\n  Number.isFinite(promptTokens) ? promptTokens : null;\n\nconst outputTokensValue =\n  Number.isFinite(outputTokens) ? outputTokens : null;\n\nconst totalTokensValue =\n  promptTokensValue !== null && outputTokensValue !== null\n    ? promptTokensValue + outputTokensValue\n    : null;\n\nreturn [{\n  json: {\n    ok: true,\n    contractStatus: \"valid\",\n    source: \"slm\",\n    answer,\n    needsEscalation: parsed.needsEscalation === true,\n    reason: parsed.needsEscalation === true\n      ? (cleanString(parsed.reason) || \"Escalade recommandée par le SLM.\")\n      : null,\n    performance: {\n      promptTokens: promptTokensValue,\n      outputTokens: outputTokensValue,\n      totalTokens: totalTokensValue\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        -100
+      ],
+      "id": "41501b72-6f8d-4d0b-b7d2-6e3cf1699c27",
+      "name": "WF-SLM-001 — 05 — Build Stable Contract"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        260,
+        -100
+      ],
+      "id": "61817f97-ae41-439b-b74f-030643cf1fa6",
+      "name": "WF-SLM-001 — 06 — Respond"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -220,
+        140
+      ],
+      "id": "f3e25207-da23-41f4-8b36-602acb54ed06",
+      "name": "WF-SLM-001 — 06R — Respond Rejection"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WF-SLM-001 — 01 — Receive SLM Request": {
+      "main": [
+        [
+          {
+            "node": "WF-SLM-001 — 02 — Validate & Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WF-SLM-001 — 02 — Validate & Prepare": {
+      "main": [
+        [
+          {
+            "node": "WF-SLM-001 — 03 — Route Valid Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WF-SLM-001 — 03 — Route Valid Request": {
+      "main": [
+        [
+          {
+            "node": "WF-SLM-001 — 04 — Call Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WF-SLM-001 — 06R — Respond Rejection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WF-SLM-001 — 04 — Call Ollama": {
+      "main": [
+        [
+          {
+            "node": "WF-SLM-001 — 05 — Build Stable Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WF-SLM-001 — 05 — Build Stable Contract": {
+      "main": [
+        [
+          {
+            "node": "WF-SLM-001 — 06 — Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "availableInMCP": false
+  },
+  "versionId": "34915f16-f769-4050-8db5-5b3daa666173",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": [],
+  "id": "rR21ZmKlmVv94GNg",
+  "isArchived": false,
+  "activeVersionId": null,
+  "triggerCount": 0
+}

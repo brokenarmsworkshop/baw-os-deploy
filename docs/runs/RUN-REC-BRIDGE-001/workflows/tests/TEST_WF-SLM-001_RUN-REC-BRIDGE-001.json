@@ -1,0 +1,185 @@
+{
+  "id": "Cqk51ZOEBUFGQ355",
+  "name": "TEST — WF-SLM-001 — RUN-REC-BRIDGE-001",
+  "active": false,
+  "isArchived": false,
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        0
+      ],
+      "id": "a56e6c25-5bba-4d24-86cf-3491484d57cd",
+      "name": "TEST — 01 — Manual Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    body: {\n      instruction: \"Donne uniquement le résultat de 2 + 2.\",\n      selection: \"\",\n      page: {\n        title: \"RUN-REC-BRIDGE-001 CLI manual test\"\n      },\n      client: {\n        type: \"firefox_extension\",\n        version: \"0.7.1\",\n        humAuthorized: true,\n        requestedSource: \"slm\"\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -580,
+        0
+      ],
+      "id": "793b7470-e59d-495d-8e79-bee3cc47e919",
+      "name": "TEST — 02 — Synthetic Bridge Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// RUN-REC-BRIDGE-001 — reconstruction minimale WF-SLM-001\n// Aucun secret. Aucun log applicatif de prompt/contenu.\n// Modèle HUM validé pour reconstruction : llama3.2:3b\n\nconst input = $input.first()?.json ?? {};\nconst body = input.body ?? input;\n\nfunction cleanString(value) {\n  return typeof value === \"string\" ? value.trim() : \"\";\n}\n\nfunction reject(errorCode, message) {\n  return [{\n    json: {\n      ok: false,\n      contractStatus: \"invalid\",\n      source: \"slm\",\n      errorCode,\n      message,\n      needsEscalation: false,\n      reason: null,\n      performance: {\n        promptTokens: null,\n        outputTokens: null,\n        totalTokens: null\n      }\n    }\n  }];\n}\n\nconst client =\n  body.client &&\n  typeof body.client === \"object\" &&\n  !Array.isArray(body.client)\n    ? body.client\n    : {};\n\nif (client.humAuthorized !== true) {\n  return reject(\n    \"hum_authorization_required\",\n    \"Une autorisation HUM explicite est requise.\"\n  );\n}\n\nconst instruction = cleanString(body.instruction);\nconst selection = cleanString(body.selection);\n\nif (!instruction && !selection) {\n  return reject(\n    \"missing_input\",\n    \"Une instruction ou une sélection est requise.\"\n  );\n}\n\nconst page =\n  body.page &&\n  typeof body.page === \"object\" &&\n  !Array.isArray(body.page)\n    ? body.page\n    : {};\n\nconst prompt = [\n  \"Tu es le SLM local du BAW HUM Bridge 0.7.1.\",\n  \"Tu fournis une aide textuelle uniquement. Tu n'exécutes aucune action externe.\",\n  \"Réponds strictement selon le schéma JSON fourni.\",\n  \"\",\n  \"Règle d'escalade : needsEscalation=true uniquement si une réponse plus robuste est recommandée\",\n  \"(information externe ou actuelle nécessaire, ambiguïté importante, enjeu sensible, contexte insuffisant,\",\n  \"ou confiance insuffisante). L'escalade reste une recommandation : aucune décision sensible automatique.\",\n  \"\",\n  `Instruction : ${instruction || \"(aucune)\"}`,\n  \"\",\n  `Sélection : ${selection || \"(aucune)\"}`,\n  \"\",\n  `Contexte de page : ${JSON.stringify(page)}`\n].join(\"\\n\");\n\nconst ollamaBody = JSON.stringify({\n  model: \"llama3.2:3b\",\n  prompt,\n  format: {\n    type: \"object\",\n    properties: {\n      answer: { type: \"string\" },\n      needsEscalation: { type: \"boolean\" },\n      reason: { type: \"string\" }\n    },\n    required: [\"answer\", \"needsEscalation\", \"reason\"]\n  },\n  stream: false,\n  options: {\n    temperature: 0.2\n  }\n});\n\nreturn [{\n  json: {\n    slmStatus: \"ready\",\n    ollamaBody\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -360,
+        0
+      ],
+      "id": "ab206bab-7751-46be-818c-93526466c123",
+      "name": "TEST — 03 — Validate & Prepare"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ece22033-61c0-4e3a-bd7f-a6b97b61dfb5",
+              "leftValue": "={{ $json.slmStatus }}",
+              "rightValue": "ready",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -140,
+        0
+      ],
+      "id": "3558e801-fe2f-4130-8199-0e173988740f",
+      "name": "TEST — 04 — Route Valid Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.ollamaBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        100,
+        -80
+      ],
+      "id": "f7b8f3ff-34ea-45f0-99c5-6d8331f40d0b",
+      "name": "TEST — 05 — Call Ollama",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Produit le contrat public stable attendu par BAW HUM Bridge 0.7.1.\n\nconst data = $input.first()?.json ?? {};\n\nfunction cleanString(value) {\n  return typeof value === \"string\" ? value.trim() : \"\";\n}\n\nfunction invalid(errorCode, message) {\n  return [{\n    json: {\n      ok: false,\n      contractStatus: \"invalid\",\n      source: \"slm\",\n      errorCode,\n      message,\n      needsEscalation: false,\n      reason: null,\n      performance: {\n        promptTokens: Number.isFinite(Number(data.prompt_eval_count))\n          ? Number(data.prompt_eval_count)\n          : null,\n        outputTokens: Number.isFinite(Number(data.eval_count))\n          ? Number(data.eval_count)\n          : null,\n        totalTokens: (\n          Number.isFinite(Number(data.prompt_eval_count)) &&\n          Number.isFinite(Number(data.eval_count))\n        )\n          ? Number(data.prompt_eval_count) + Number(data.eval_count)\n          : null\n      }\n    }\n  }];\n}\n\nif (data.error) {\n  const message =\n    cleanString(data.error?.message) ||\n    cleanString(data.error) ||\n    \"Échec de l'appel Ollama.\";\n\n  return invalid(\"ollama_error\", message);\n}\n\nconst rawContent = cleanString(data.response);\n\nif (!rawContent) {\n  return invalid(\n    \"empty_model_response\",\n    \"Ollama n'a retourné aucun contenu exploitable.\"\n  );\n}\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(rawContent);\n} catch {\n  return invalid(\n    \"invalid_model_contract\",\n    \"La réponse du SLM n'est pas un JSON valide.\"\n  );\n}\n\nconst answer = cleanString(parsed.answer);\n\nif (!answer || typeof parsed.needsEscalation !== \"boolean\") {\n  return invalid(\n    \"invalid_model_contract\",\n    \"La réponse du SLM ne respecte pas le contrat attendu.\"\n  );\n}\n\nconst promptTokens = Number(data.prompt_eval_count);\nconst outputTokens = Number(data.eval_count);\n\nconst promptTokensValue =\n  Number.isFinite(promptTokens) ? promptTokens : null;\n\nconst outputTokensValue =\n  Number.isFinite(outputTokens) ? outputTokens : null;\n\nconst totalTokensValue =\n  promptTokensValue !== null && outputTokensValue !== null\n    ? promptTokensValue + outputTokensValue\n    : null;\n\nreturn [{\n  json: {\n    ok: true,\n    contractStatus: \"valid\",\n    source: \"slm\",\n    answer,\n    needsEscalation: parsed.needsEscalation === true,\n    reason: parsed.needsEscalation === true\n      ? (cleanString(parsed.reason) || \"Escalade recommandée par le SLM.\")\n      : null,\n    performance: {\n      promptTokens: promptTokensValue,\n      outputTokens: outputTokensValue,\n      totalTokens: totalTokensValue\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        -80
+      ],
+      "id": "8d8ca227-9d83-4c1f-8e21-be1b774f0382",
+      "name": "TEST — 06 — Stable Contract"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "TEST — 01 — Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "TEST — 02 — Synthetic Bridge Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEST — 02 — Synthetic Bridge Request": {
+      "main": [
+        [
+          {
+            "node": "TEST — 03 — Validate & Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEST — 03 — Validate & Prepare": {
+      "main": [
+        [
+          {
+            "node": "TEST — 04 — Route Valid Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEST — 04 — Route Valid Request": {
+      "main": [
+        [
+          {
+            "node": "TEST — 05 — Call Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "TEST — 05 — Call Ollama": {
+      "main": [
+        [
+          {
+            "node": "TEST — 06 — Stable Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "availableInMCP": false
+  },
+  "versionId": "ae1c771a-4ac4-4fc1-b232-b55b83689c1c",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

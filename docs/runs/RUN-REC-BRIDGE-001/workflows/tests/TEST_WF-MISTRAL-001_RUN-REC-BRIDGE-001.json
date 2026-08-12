@@ -1,0 +1,251 @@
+{
+  "id": "59NM7JvwVTBkn6Iz",
+  "name": "TEST — WF-MISTRAL-001 — RUN-REC-BRIDGE-001",
+  "active": false,
+  "isArchived": false,
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        0
+      ],
+      "id": "1fcd10fe-acb8-429c-8d21-99263ca1c13d",
+      "name": "TEST — 01 — Manual Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    body: {\n      instruction: \"Donne uniquement le résultat de 2 + 2.\",\n      selection: \"\",\n      page: {\n        title: \"RUN-REC-BRIDGE-001 test Mistral\"\n      },\n      previousResponse: {\n        source: \"slm\",\n        answer: \"4\"\n      },\n      additionalInstruction: \"Vérifie la réponse précédente et réponds brièvement.\",\n      client: {\n        type: \"firefox_extension\",\n        version: \"0.7.1\",\n        humAuthorized: true,\n        requestedSource: \"mistral\"\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -780,
+        0
+      ],
+      "id": "a184f88f-7286-432a-8db9-7650d389cccd",
+      "name": "TEST — 02 — Synthetic Bridge Escalation"
+    },
+    {
+      "parameters": {
+        "jsCode": "// RUN-REC-BRIDGE-001 — reconstruction minimale WF-MISTRAL-001\nconst input = $input.first()?.json ?? {};\nconst body = input.body ?? input;\n\nfunction cleanString(value) {\n  return typeof value === \"string\" ? value.trim() : \"\";\n}\n\nfunction reject(errorCode, message) {\n  return [{\n    json: {\n      mistralStatus: \"rejected\",\n      publicResponse: {\n        ok: false,\n        contractStatus: \"invalid\",\n        source: \"mistral\",\n        errorCode,\n        message,\n        answer: \"\",\n        reason: null,\n        performance: {\n          promptTokens: null,\n          outputTokens: null,\n          totalTokens: null\n        }\n      }\n    }\n  }];\n}\n\nconst client =\n  body.client &&\n  typeof body.client === \"object\" &&\n  !Array.isArray(body.client)\n    ? body.client\n    : {};\n\nif (client.humAuthorized !== true) {\n  return reject(\n    \"hum_authorization_required\",\n    \"Une autorisation HUM explicite est requise.\"\n  );\n}\n\nif (client.requestedSource !== \"mistral\") {\n  return reject(\n    \"explicit_mistral_request_required\",\n    \"L'escalade Mistral doit être explicitement demandée.\"\n  );\n}\n\nconst previous =\n  body.previousResponse &&\n  typeof body.previousResponse === \"object\" &&\n  !Array.isArray(body.previousResponse)\n    ? body.previousResponse\n    : {};\n\nconst previousAnswer = cleanString(previous.answer);\n\nif (previous.source !== \"slm\" || !previousAnswer) {\n  return reject(\n    \"previous_slm_response_required\",\n    \"Une réponse SLM précédente valide est requise.\"\n  );\n}\n\nconst instruction = cleanString(body.instruction);\nconst selection = cleanString(body.selection);\nconst additionalInstruction = cleanString(body.additionalInstruction);\n\nconst page =\n  body.page &&\n  typeof body.page === \"object\" &&\n  !Array.isArray(body.page)\n    ? body.page\n    : {};\n\nconst systemPrompt = [\n  \"Tu es l'étape Mistral explicitement déclenchée du BAW HUM Bridge 0.7.1.\",\n  \"Tu produis une aide textuelle uniquement et n'exécutes aucune action externe.\",\n  \"Réponds uniquement avec un objet JSON.\",\n  'Le JSON doit contenir : \"ok\": true, \"source\": \"mistral\", \"answer\": chaîne non vide, \"reason\": chaîne.',\n  \"Ne prétends pas avoir exécuté une action externe.\"\n].join(\"\\n\");\n\nconst userPrompt = [\n  `Instruction initiale : ${instruction || \"(aucune)\"}`,\n  \"\",\n  `Sélection : ${selection || \"(aucune)\"}`,\n  \"\",\n  `Réponse SLM précédente : ${previousAnswer}`,\n  \"\",\n  `Instruction additionnelle HUM : ${additionalInstruction || \"(aucune)\"}`,\n  \"\",\n  `Contexte de page : ${JSON.stringify(page)}`\n].join(\"\\n\");\n\nconst mistralBody = JSON.stringify({\n  model: \"mistral-large-latest\",\n  messages: [\n    { role: \"system\", content: systemPrompt },\n    { role: \"user\", content: userPrompt }\n  ],\n  response_format: {\n    type: \"json_object\"\n  },\n  temperature: 0.2,\n  stream: false\n});\n\nreturn [{\n  json: {\n    mistralStatus: \"ready\",\n    mistralBody\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        0
+      ],
+      "id": "93d5e0e1-04be-4bf2-b554-21c82f5ac1a0",
+      "name": "TEST — 03 — Validate & Prepare"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9de0cd8a-38dd-430d-bc73-64bf9b3c2066",
+              "leftValue": "={{ $json.mistralStatus }}",
+              "rightValue": "ready",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -340,
+        0
+      ],
+      "id": "a37e6a73-9ab4-4720-9dc9-de7ca307207a",
+      "name": "TEST — 04 — Route Valid Request"
+    },
+    {
+      "parameters": {
+        "url": "https://api.mistral.ai/v1/chat/completions",
+        "method": "POST",
+        "options": {},
+        "jsonBody": "={{ $json.mistralBody }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "mistralCloudApi"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -100,
+        -80
+      ],
+      "id": "04e93e7d-93e8-4e3f-9c92-7bfd510be489",
+      "name": "TEST — 05 — Call Mistral",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "xvXlbKfwo7jXfdlp",
+          "name": "BAW OS — Mistral"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Valide le contrat Mistral et prépare uniquement les métadonnées d'usage.\nconst data = $input.first()?.json ?? {};\n\nfunction cleanString(value) {\n  return typeof value === \"string\" ? value.trim() : \"\";\n}\n\nfunction toNonNegativeInt(value) {\n  const n = Number(value);\n  return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : 0;\n}\n\nconst model = cleanString(data.model) || \"mistral-large-latest\";\nconst requestId = cleanString(data.id) || null;\n\nconst promptTokens = toNonNegativeInt(data.usage?.prompt_tokens);\nconst completionTokens = toNonNegativeInt(data.usage?.completion_tokens);\nconst totalTokensFromApi = toNonNegativeInt(data.usage?.total_tokens);\nconst totalTokens =\n  totalTokensFromApi > 0\n    ? totalTokensFromApi\n    : promptTokens + completionTokens;\n\nlet contractStatus = \"invalid\";\nlet publicResponse;\n\nif (data.error) {\n  const errorMessage =\n    cleanString(data.error?.message) ||\n    cleanString(data.message) ||\n    \"Échec de l'appel Mistral.\";\n\n  publicResponse = {\n    ok: false,\n    contractStatus: \"invalid\",\n    source: \"mistral\",\n    errorCode: \"mistral_api_error\",\n    message: errorMessage,\n    answer: \"\",\n    reason: null,\n    performance: {\n      promptTokens,\n      outputTokens: completionTokens,\n      totalTokens\n    }\n  };\n} else {\n  const rawContent = cleanString(data.choices?.[0]?.message?.content);\n\n  let parsed = null;\n\n  if (rawContent) {\n    try {\n      parsed = JSON.parse(rawContent);\n    } catch {\n      parsed = null;\n    }\n  }\n\n  const answer = cleanString(parsed?.answer);\n  const reason = cleanString(parsed?.reason);\n\n  const valid =\n    parsed !== null &&\n    parsed.ok === true &&\n    parsed.source === \"mistral\" &&\n    Boolean(answer) &&\n    typeof parsed.reason === \"string\";\n\n  if (valid) {\n    contractStatus = \"valid\";\n\n    publicResponse = {\n      ok: true,\n      contractStatus: \"valid\",\n      source: \"mistral\",\n      answer,\n      reason,\n      performance: {\n        promptTokens,\n        outputTokens: completionTokens,\n        totalTokens\n      }\n    };\n  } else {\n    publicResponse = {\n      ok: false,\n      contractStatus: \"invalid\",\n      source: \"mistral\",\n      errorCode: \"invalid_mistral_contract\",\n      message: \"La réponse Mistral ne respecte pas le contrat attendu.\",\n      answer: \"\",\n      reason: null,\n      rawContent,\n      performance: {\n        promptTokens,\n        outputTokens: completionTokens,\n        totalTokens\n      }\n    };\n  }\n}\n\nreturn [{\n  json: {\n    publicResponse,\n    logRecord: {\n      model,\n      prompt_tokens: promptTokens,\n      completion_tokens: completionTokens,\n      total_tokens: totalTokens,\n      contract_status: contractStatus,\n      http_status: data.error ? null : 200,\n      mistral_request_id: requestId\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        140,
+        -80
+      ],
+      "id": "ee0721a4-41a5-40ff-813d-0fa4d494b068",
+      "name": "TEST — 06 — Validate Mistral Contract"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.baw_mistral_usage_log (\n    model,\n    prompt_tokens,\n    completion_tokens,\n    total_tokens,\n    contract_status,\n    http_status,\n    mistral_request_id\n)\nSELECT\n    x.model,\n    x.prompt_tokens,\n    x.completion_tokens,\n    x.total_tokens,\n    x.contract_status,\n    x.http_status,\n    x.mistral_request_id\nFROM jsonb_to_record($1::jsonb) AS x(\n    model text,\n    prompt_tokens integer,\n    completion_tokens integer,\n    total_tokens integer,\n    contract_status text,\n    http_status integer,\n    mistral_request_id text\n)\nRETURNING id, created_at;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.logRecord) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        380,
+        -80
+      ],
+      "id": "fbf73d0e-e89e-4e1a-9ce5-a36ae31d29c1",
+      "name": "TEST — 07 — Log Usage Metadata",
+      "credentials": {
+        "postgres": {
+          "id": "U22hvd10ebCmaIUg",
+          "name": "BAW OS — PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const normalized = $(\"TEST — 06 — Validate Mistral Contract\").first().json;\nconst logResult = $input.first()?.json ?? {};\nreturn [{\n  json: {\n    ...normalized.publicResponse,\n    testEvidence: {\n      usageLogId: logResult.id ?? null,\n      usageLogged: logResult.id !== undefined && logResult.id !== null\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        -80
+      ],
+      "id": "df4327f3-36c1-4552-8f6d-3263d532713d",
+      "name": "TEST — 08 — Final Contract"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "TEST — 01 — Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "TEST — 02 — Synthetic Bridge Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEST — 02 — Synthetic Bridge Escalation": {
+      "main": [
+        [
+          {
+            "node": "TEST — 03 — Validate & Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEST — 03 — Validate & Prepare": {
+      "main": [
+        [
+          {
+            "node": "TEST — 04 — Route Valid Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEST — 04 — Route Valid Request": {
+      "main": [
+        [
+          {
+            "node": "TEST — 05 — Call Mistral",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "TEST — 05 — Call Mistral": {
+      "main": [
+        [
+          {
+            "node": "TEST — 06 — Validate Mistral Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEST — 06 — Validate Mistral Contract": {
+      "main": [
+        [
+          {
+            "node": "TEST — 07 — Log Usage Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEST — 07 — Log Usage Metadata": {
+      "main": [
+        [
+          {
+            "node": "TEST — 08 — Final Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "availableInMCP": false
+  },
+  "versionId": "4ee6073f-981d-452e-8665-6a24f25ca716",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

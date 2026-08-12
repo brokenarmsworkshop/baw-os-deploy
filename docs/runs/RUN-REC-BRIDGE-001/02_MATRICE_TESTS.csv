@@ -1,0 +1,33 @@
+﻿Phase;Objet;Test;Résultat;Preuve / Observation
+P0;Dossier recovery;Création G:\BAW_OS\recovery\RUN-REC-BRIDGE-001;OK;Créé
+P0;Archive canonique 0.7.1;SHA-256;OK;26BAB79D11093F9D7351E882E030FD7E934DC0B97ED54C22BAFDD3D18A5CAA89
+P0;Extension Firefox 0.7.1;SHA-256;OK;4321F3239E0142DB25986961AE03D67EF00C0FB1FBD8C036AA09FBB09D9AF88B
+P0;Export n8n pré-reconstruction;64 workflows + SHA-256;OK;D102EA343FFADA53437E0CA18CDE2B7CC61113C7807DADAD093AE2EE7563AC34
+P1;n8n;Conteneur baw-n8n 2.32.7;OK;healthy
+P1;PostgreSQL;postgres:16-bookworm;OK;healthy
+P1;Ollama;GET /api/tags;OK;llama3.2:3b présent
+P1;Ancien WF-SLM-001;Recherche export 64 workflows;ABSENT;Reconstruction requise
+P1;Ancien WF-MISTRAL-001;Recherche export 64 workflows;ABSENT;Reconstruction requise
+P1;Ancien WF-MON-001;Recherche export 64 workflows;ABSENT;Reconstruction requise
+P1;Table baw_mistral_usage_log;Recherche baw_core/n8n/postgres;ABSENT;DDL reconstruit après validation HUM
+P2;Extension Firefox;manifest.json;OK;0.7.1 / Gecko ID conforme
+P2;Gateway documentaire;Recherche et lecture réelle;OK;Non modifié
+P3;Ollama direct;2+2 JSON strict;OK;118 tokens au test direct
+P3;WF-SLM-001 harness;n8n → Ollama → contrat;OK;222 tokens
+P7;WF-SLM-001 production;POST /webhook/baw/slm/ask;OK;223 tokens
+P4;WF-MISTRAL-001 harness;n8n → Mistral → PostgreSQL;OK;233 tokens / usageLogId=1
+P7;WF-MISTRAL-001 production;POST /webhook/baw/mistral/ask;OK;260 tokens / log id=2
+P5;WF-MON-001 harness;Agrégation journal + contrat Bridge;OK;233 tokens / 0,47 % / niveau 1
+P7;WF-MON-001 production;GET /webhook/baw/monitoring/mistral/daily;OK;493 tokens / 0,99 % / niveau 1
+P8;Monitoring Bridge réel;Firefox;OK;748 / 50 000 / 1,5 % / 3 requêtes
+P8;SLM Bridge réel;Capture → SLM;OK;Fonctionnel
+P8;Escalade Mistral réelle;SLM → HUM → Mistral;OK;Réponse séparée
+P8;Persistance;Fermer/réouvrir panneau;OK;Fonctionnel
+P8;Copier;Test utilisateur;OK;Fonctionnel
+P8;Injecter;Test utilisateur;OK;Séparé et fonctionnel
+P8;Recherche documentaire;Test utilisateur;OK;Fonctionnel
+P8;Lecture ponctuelle;Test utilisateur;OK;Fonctionnel
+P8;Publication Notion complète;Contrôle;NON DÉCLENCHÉE;Conforme mandat
+P9;Export n8n final post-archivage;73 workflows;OK;A850841D83083C367C27A26C44692B77D2E021B58882DFA3BA8B5B9B675102BF
+P9;Backup DB n8n final post-archivage;pg_dump -Fc;OK;D8D084D8F994FAF104F2C33D9B2097252F103DCC78576924F423AE0416ECD5E3
+P9;Backup baw_core final;pg_dump -Fc;OK;941EBEEC21B91FED5584CA0B87E3110A65BD0E8B7C17C20EC345E6F132CA30A9
