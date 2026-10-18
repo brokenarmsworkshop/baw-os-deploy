@@ -1,0 +1,21 @@
+# Opt-in staging preparation only: NO secret mount, so web transfers remain disabled.
+# Apply with -f compose.yaml -f compose.staging-prep.yaml
+services:
+  bridge-v33:
+    environment:
+      BAW_STAGE_REPO_ROOT: /data/git-source
+      BAW_STAGE_ROOT: /data/staging
+      BAW_STAGE_ALLOW_REPO: brokenarmsworkshop/baw-os-app
+    volumes:
+      - type: bind
+        source: G:/BAW_OS/pilots/bridge-v33-tests
+        target: /data/git-source
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: G:/BAW_OS/pilots/bridge-v33-isolated/staging
+        target: /data/staging
+        read_only: false
+        bind:
+          create_host_path: false
