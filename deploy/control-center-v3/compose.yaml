@@ -24,6 +24,12 @@ services:
         read_only: true
         bind:
           create_host_path: false
+      - type: bind
+        source: G:/BAW_OS/pilots/control-center-v3/inbox
+        target: /data/inbox
+        read_only: false
+        bind:
+          create_host_path: false
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
     cap_drop:
