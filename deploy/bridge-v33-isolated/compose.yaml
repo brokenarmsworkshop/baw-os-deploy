@@ -1,0 +1,50 @@
+name: baw-bridge-v33-isolated
+
+services:
+  bridge-v33:
+    build:
+      context: ../../../baw-os-app
+      dockerfile: control-center-v3/Dockerfile
+    image: baw/bridge:v3.3-isolated-pilot
+    restart: "no"
+    init: true
+    ports:
+      - "127.0.0.1:18766:8765"
+    environment:
+      BAW_V33_PUBLIC_PORT: "18766"
+      BAW_LIBRARY_ROOT: /data/library
+      BAW_INBOX_ROOT: /data/inbox
+      BAW_QUEUE_ROOT: /data/queue
+      BAW_N8N_HEALTH_URL: http://127.0.0.1:9/unavailable
+      BAW_POSTGRES_HOST: 127.0.0.1
+      BAW_POSTGRES_PORT: "9"
+    volumes:
+      - type: bind
+        source: G:/BAW_OS/pilots/bridge-v33-isolated/library
+        target: /data/library
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: G:/BAW_OS/pilots/bridge-v33-isolated/inbox
+        target: /data/inbox
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: bind
+        source: G:/BAW_OS/pilots/bridge-v33-isolated/queue
+        target: /data/queue
+        read_only: false
+        bind:
+          create_host_path: false
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
