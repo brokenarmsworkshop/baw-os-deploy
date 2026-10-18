@@ -1,26 +1,27 @@
-# Control Center V3 — déploiement pilote
+# BAW Control Center V3.1 — pilote
 
-Recette indépendante des projets Compose PostgreSQL (`baw-os-postgres`) et n8n (`baw-os-n8n`).
-Ne modifie ni leurs volumes `baw-postgres-data`, `baw-n8n-data`, ni leurs secrets.
+Le projet Compose est **indépendant** de n8n et PostgreSQL existants et partage seulement le réseau externe `baw-backend`.
 
-## Prérequis
-
-- Docker Desktop démarré ;
-- dépôts voisins dans `G:\BAW_OS\repositories\baw-os-app` et `...\baw-os-deploy` ;
-- les branches pilotes récupérées et extraites dans les deux clones ;
-- réseau externe `baw-backend` existant.
-
-## Pré-vérification et lancement
-
-Depuis `G:\BAW_OS\repositories\baw-os-deploy` :
+## Préparer les deux clones pilotes
 
 ```powershell
+$base = "G:\BAW_OS\pilots\control-center-v3"
+New-Item -ItemType Directory -Path "$base\library" -Force | Out-Null
+git -C "$base\baw-os-app" pull --ff-only
+git -C "$base\baw-os-deploy" pull --ff-only
+Set-Location "$base\baw-os-deploy"
 docker compose -f .\deploy\control-center-v3\compose.yaml config
 docker compose -f .\deploy\control-center-v3\compose.yaml up -d --build
 docker compose -f .\deploy\control-center-v3\compose.yaml ps
 ```
 
-Navigateur : `http://127.0.0.1:18765`.
+Ouvrir :
+- `http://127.0.0.1:18765/`
+- `http://127.0.0.1:18765/library`
+
+Le seul bind mount est `G:/BAW_OS/pilots/control-center-v3/library` vers `/data/library:ro`.
+Il est obligatoire et non créé automatiquement par Docker.
+Ne pas déplacer des fichiers confidentiels ou des secrets dans cette bibliothèque de démonstration.
 
 ## Retour arrière
 
@@ -28,10 +29,11 @@ Navigateur : `http://127.0.0.1:18765`.
 docker compose -f .\deploy\control-center-v3\compose.yaml down
 ```
 
-Cette commande arrête uniquement le projet pilote et ne supprime aucun volume des projets BAW existants.
+Ne pas utiliser `down -v`, `volume prune` ou `system prune`.
 
-## Limites
+## Sécurité et limites
 
-Ce pilote n'est **pas** une migration fonctionnelle du Control Center Git V2.
-Il prouve le déploiement web local et l'accès réseau en lecture seule aux services.
-Ne pas publier le port au-delà de `127.0.0.1`. Ne pas ajouter `docker.sock` à ce conteneur.
+Le service ne peut ni écrire, ni supprimer, ni télécharger de fichiers ;
+la page affiche les noms et tailles des fichiers du dossier pilote, et le hash SHA-256 sur demande.
+L'accès web reste limité à la boucle locale Windows. Aucun port n'est ouvert sur le LAN.
+Les images ne sont pas encore figées par digest, les tests ne sont pas exécutés sur le poste.
