@@ -1,0 +1,36 @@
+name: baw-control-center-v3
+
+services:
+  control-center:
+    build:
+      context: ../../../baw-os-app
+      dockerfile: control-center-v3/Dockerfile
+    image: baw/control-center:v3-pilot
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:18765:8765"
+    environment:
+      BAW_N8N_HEALTH_URL: http://baw-n8n:5678/healthz
+      BAW_POSTGRES_HOST: baw-postgres
+      BAW_POSTGRES_PORT: "5432"
+    networks:
+      - baw_backend
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  baw_backend:
+    external: true
+    name: baw-backend
