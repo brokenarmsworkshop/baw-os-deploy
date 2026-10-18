@@ -17,6 +17,13 @@ services:
     networks:
       - baw_backend
     read_only: true
+    volumes:
+      - type: bind
+        source: G:/BAW_OS/pilots/control-center-v3/library
+        target: /data/library
+        read_only: true
+        bind:
+          create_host_path: false
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
     cap_drop:
